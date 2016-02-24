@@ -78,7 +78,7 @@ class ExceptionFormatter
      */
     protected function createDefaultTraceFormatter()
     {
-        return new TraceFormatter(new ValueFormatter());
+        return new TraceFormatter();
     }
 
     /**
@@ -88,11 +88,10 @@ class ExceptionFormatter
      */
     protected function formatExceptionMessage(Exception $exception)
     {
-        $severity = $this->formatExceptionSeverity($exception);
-        $type = get_class($exception);
-        $message = $exception->getMessage();
+        $type = $this->formatExceptionType($exception);
+        $message = $exception->getMessage() ?: '{none}';
 
-        return "{$severity}: {$type} with message: {$message}";
+        return "{$type} with message: {$message}";
     }
 
     /**
@@ -100,43 +99,47 @@ class ExceptionFormatter
      *
      * @return string
      */
-    protected function formatExceptionSeverity(Exception $exception)
+    protected function formatExceptionType(Exception $exception)
     {
+        $type = get_class($exception);
+
         if ($exception instanceof ErrorException) {
             switch ($exception->getSeverity()) {
                 case E_ERROR:
                 case E_USER_ERROR:
                 case E_CORE_ERROR:
                 case E_COMPILE_ERROR:
-                    return "Fatal error";
+                    return "{$type}: Fatal error";
 
                 case E_PARSE:
-                    return "Parse error";
+                    return "{$type}: Parse error";
 
                 case E_WARNING:
                 case E_USER_WARNING:
                 case E_CORE_WARNING:
                 case E_COMPILE_WARNING:
-                    return "Warning";
+                    return "{$type}: Warning";
 
                 case E_NOTICE:
                 case E_USER_NOTICE:
-                    return "Notice";
+                    return "{$type}: Notice";
 
                 case E_STRICT:
-                    return "Strict standards";
+                    return "{$type}: Strict standards";
 
                 case E_RECOVERABLE_ERROR:
-                    return "Catchable error";
+                    return "{$type}: Catchable error";
 
                 case E_DEPRECATED:
                 case E_USER_DEPRECATED:
-                    return "Deprecated";
+                    return "{$type}: Deprecated";
             }
 
-            return "Unknown error";
+            return "{$type}: Unknown error";
         }
 
-        return "Exception";
+        return $type === Exception::class
+            ? "Exception"
+            : "Exception: {$type}";
     }
 }

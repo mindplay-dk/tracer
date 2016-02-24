@@ -1,6 +1,8 @@
 mindplay/tracer
 ===============
 
+#### UNSTABLE / WORK IN PROGRESS
+
 This package provides an API for working with stack-traces.
 
 Features and objectives:

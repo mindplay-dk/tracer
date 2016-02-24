@@ -12,7 +12,7 @@ use mindplay\tracer\TraceFormatter;
 use mindplay\tracer\ValueFormatter;
 use RuntimeException;
 
-require dirname(__DIR__) . '/vendor/autoload.php';
+require dirname(__DIR__) . "/vendor/autoload.php";
 
 set_error_handler(function ($errno, $errstr, $errfile, $errline) {
     $error = new ErrorException($errstr, 0, $errno, $errfile, $errline);
@@ -23,7 +23,7 @@ set_error_handler(function ($errno, $errstr, $errfile, $errline) {
 });
 
 try {
-    require __DIR__ . '/cases.php';
+    require __DIR__ . "/cases.php";
 } catch (Exception $file_exception) {
     // caught!
 }
@@ -141,19 +141,6 @@ test(
 );
 
 test(
-    "TraceElement constructor should throw",
-    function () {
-        expect(
-            RuntimeException::class,
-            "should throw for unsupported value",
-            function () {
-                new TraceElement(['oops' => 'nope']);
-            }
-        );
-    }
-);
-
-test(
     "can create trace elements from Exceptions",
     function () {
         $c = new TestClass();
@@ -183,6 +170,54 @@ test(
     }
 );
 
-configure()->enableCodeCoverage(__DIR__ . '/build/clover.xml', dirname(__DIR__) . '/src');
+test(
+    "TraceElement constructor should throw",
+    function () {
+        expect(
+            RuntimeException::class,
+            "should throw for unsupported value",
+            function () {
+                new TraceElement(['oops' => 'nope']);
+            }
+        );
+    }
+);
+
+test(
+    "can reduce trace elements",
+    function () {
+        $trace = new Trace([
+            new TraceElement(["file" => "foo.php"]),
+            new TraceElement(["file" => "bar.php"]),
+            new TraceElement(["file" => "baz.php"]),
+        ]);
+        
+        $trace = $trace->filter(function (TraceElement $element) {
+            return $element->getFile() != "bar.php";
+        });
+
+        $elements = $trace->getElements();
+
+        eq(count($elements), 2);
+
+        eq($elements[0]->getFile(), "foo.php");
+        eq($elements[1]->getFile(), "baz.php");
+    }
+);
+
+test(
+    "can format severity levels",
+    function () {
+        $formatter = new ExceptionFormatter();
+
+        contains_parts($formatter->formatException(new Exception()), ['Exception with message: {none}']);
+
+        contains_parts($formatter->formatException(new ErrorException("", 0, E_NOTICE)), ['ErrorException: Notice']);
+
+        // TODO test all error-levels
+    }
+);
+
+configure()->enableCodeCoverage(__DIR__ . "/build/clover.xml", dirname(__DIR__) . "/src");
 
 exit(run());
