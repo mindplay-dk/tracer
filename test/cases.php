@@ -10,10 +10,6 @@ class EvalClass {
     public function instanceMethod() {
         throw new Exception("from instance method");
     }
-
-    public static function staticMethod() {
-        throw new Exception("from static method");
-    }
 }
 CODE
 );

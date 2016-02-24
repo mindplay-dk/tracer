@@ -8,7 +8,6 @@ use mindplay\tracer\ExceptionFormatter;
 use mindplay\tracer\Trace;
 use mindplay\tracer\TraceElement;
 use mindplay\tracer\TraceFactory;
-use mindplay\tracer\TraceFormatter;
 use mindplay\tracer\ValueFormatter;
 use RuntimeException;
 
@@ -30,7 +29,7 @@ try {
 
 restore_error_handler();
 
-if (! isset($file_exception)) {
+if (!isset($file_exception)) {
     echo "internal error: file-level Exception was not caught";
     exit(1);
 }
@@ -83,6 +82,20 @@ test(
 );
 
 test(
+    "can format Exceptions",
+    function () {
+        // TODO
+    }
+);
+
+test(
+    "can format (backtrack through) multi-level Exceptions",
+    function () {
+        // TODO
+    }
+);
+
+test(
     "can format argument lists",
     function () {
         $formatter = new ExceptionFormatter();
@@ -95,7 +108,7 @@ test(
             // caught
         }
 
-        if (! isset($exception)) {
+        if (!isset($exception)) {
             echo "internal error: Exception was not caught";
             exit(1);
         }
@@ -114,13 +127,13 @@ test(
 
         $trace = $factory->createFromData([
             [
-                'file'     => 'foo.php',
-                'line'     => 99,
+                'file' => 'foo.php',
+                'line' => 99,
                 'function' => 'yada()',
-                'args'     => [1, 2, 3],
-                'class'    => 'Foo',
-                'type'     => TraceElement::TYPE_INSTANCE,
-                'object'   => new TestClass(),
+                'args' => [1, 2, 3],
+                'class' => 'Foo',
+                'type' => TraceElement::TYPE_INSTANCE,
+                'object' => new TestClass(),
             ],
         ]);
 
@@ -151,7 +164,7 @@ test(
             // caught
         }
 
-        if (! isset($exception)) {
+        if (!isset($exception)) {
             echo "internal error: Exception was not caught";
             exit(1);
         }
@@ -167,6 +180,20 @@ test(
         foreach ($elements as $element) {
             ok($element instanceof TraceElement);
         }
+    }
+);
+
+test(
+    "can create elements from debug_backtrace()",
+    function () {
+        // TODO
+    }
+);
+
+test(
+    "can format debug_backtrace()",
+    function () {
+        // TODO
     }
 );
 
@@ -191,7 +218,7 @@ test(
             new TraceElement(["file" => "bar.php"]),
             new TraceElement(["file" => "baz.php"]),
         ]);
-        
+
         $trace = $trace->filter(function (TraceElement $element) {
             return $element->getFile() != "bar.php";
         });
@@ -215,6 +242,96 @@ test(
         contains_parts($formatter->formatException(new ErrorException("", 0, E_NOTICE)), ['ErrorException: Notice']);
 
         // TODO test all error-levels
+    }
+);
+
+/**
+ * @param Exception $exception
+ *
+ * @return TraceElement[]
+ */
+function case_elements(Exception $exception)
+{
+    $factory = new TraceFactory();
+
+    return $factory
+        ->createFromException($exception)
+        ->filter(function (TraceElement $element) {
+            return $element->getFile() === __DIR__ . DIRECTORY_SEPARATOR . 'cases.php';
+        })
+        ->getElements();
+}
+
+/**
+ * @param Exception $exception
+ *
+ * @return TraceElement[]
+ */
+function all_elements(Exception $exception)
+{
+    $factory = new TraceFactory();
+
+    return $factory
+        ->createFromException($exception)
+        ->getElements();
+}
+
+test(
+    "can trace from file",
+    function () use ($file_exception) {
+        $elements = case_elements($file_exception);
+
+        eq($elements[0]->getLine(), 48);
+
+        // TODO more assertions?
+    }
+);
+
+test(
+    "can trace from eval()'ed code",
+    function () {
+        $c = new \EvalClass();
+
+        try {
+            $c->instanceMethod();
+        } catch (Exception $exception) {
+            // caught
+        }
+
+        $elements = all_elements($exception);
+
+        // TODO $elements[0]->getFile() is something like:
+        // "C:\workspace\test\mindplay-tracer\test\cases.php(19) : eval()'d code"
+        // and $elements[0]->getLine() refers to the line-number in the code eval()'ed at that site
+        // should we normalize this somehow?
+    }
+);
+
+test(
+    "consistency tests for debug_backtrace()",
+    function () {
+        // TODO
+    }
+);
+
+test(
+    "tests for stack-trace order for inner/outer methods",
+    function () {
+        // TODO
+    }
+);
+
+test(
+    "can trace from static methods",
+    function () {
+        // TODO
+    }
+);
+
+test(
+    "can trace from anonymous functions",
+    function () {
+        // TODO
     }
 );
 

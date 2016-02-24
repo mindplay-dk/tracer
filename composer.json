@@ -1,5 +1,8 @@
 {
     "name": "mindplay/tracer",
+    "require": {
+        "php": ">=5.4"
+    },
     "require-dev": {
         "mindplay/testies": "dev-master",
         "phpunit/php-code-coverage": "^3.2.1"

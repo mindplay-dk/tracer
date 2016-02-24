@@ -52,7 +52,10 @@ class TraceFactory
     }
 
     /**
-     * Create stack-trace Elements for a given Exception
+     * Create stack-trace Elements for a given Exception.
+     *
+     * This includes a reconstruction of the origin call record, which is otherwise
+     * missing from the stack-trace produced by `Exception::getTrace()`.
      *
      * @param Exception $exception
      *
@@ -68,7 +71,7 @@ class TraceFactory
     }
 
     /**
-     * Create stack-trace-like data for the origin call defined by a given Exception.
+     * Reconstruct the missing origin call record for a given Exception.
      *
      * @param Exception $exception
      *
