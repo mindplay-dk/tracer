@@ -1,0 +1,12 @@
+{
+    "name": "mindplay/tracer",
+    "require-dev": {
+        "mindplay/testies": "dev-master",
+        "phpunit/php-code-coverage": "^3.2.1"
+    },
+    "autoload": {
+        "psr-4": {
+            "mindplay\\tracer\\": "src/"
+        }
+    }
+}
