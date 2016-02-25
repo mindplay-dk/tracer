@@ -8,7 +8,7 @@ eval(
 <<<'CODE'
 class EvalClass {
     public function instanceMethod() {
-        throw new Exception("from instance method");
+        throw new Exception("from eval instance method");
     }
 }
 CODE
@@ -16,7 +16,12 @@ CODE
 
 class TestClass
 {
-    public function outerMethod($data)
+    public function instanceMethod()
+    {
+        throw new Exception("from instance method");
+    }
+
+    public function outerMethod($data = null)
     {
         try {
             $this->innerMethod();
@@ -28,6 +33,11 @@ class TestClass
     private function innerMethod()
     {
         throw new Exception("from inner method");
+    }
+
+    public function divideByZero()
+    {
+        return 1/0;
     }
 
     public static function staticMethod()
@@ -42,6 +52,19 @@ class TestClass
         };
 
         $anon();
+    }
+
+    /**
+     * @return array
+     */
+    public function outerTrace()
+    {
+        return $this->innerTrace();
+    }
+
+    public function innerTrace()
+    {
+        return debug_backtrace();
     }
 }
 

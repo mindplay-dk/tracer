@@ -4,22 +4,15 @@ namespace mindplay\tracer\test;
 
 use ErrorException;
 use Exception;
-use mindplay\tracer\ExceptionFormatter;
+use mindplay\tracer\MessageFormatter;
 use mindplay\tracer\Trace;
 use mindplay\tracer\TraceElement;
 use mindplay\tracer\TraceFactory;
+use mindplay\tracer\TraceFormatter;
 use mindplay\tracer\ValueFormatter;
 use RuntimeException;
 
 require dirname(__DIR__) . "/vendor/autoload.php";
-
-set_error_handler(function ($errno, $errstr, $errfile, $errline) {
-    $error = new ErrorException($errstr, 0, $errno, $errfile, $errline);
-
-    if ($error->getSeverity() & error_reporting()) {
-        throw $error;
-    }
-});
 
 try {
     require __DIR__ . "/cases.php";
@@ -27,21 +20,120 @@ try {
     // caught!
 }
 
-restore_error_handler();
+//try {
+//    $c = new TestClass();
+//    $c->outerMethod();
+//} catch (Exception $e) {
+//    echo $e->__toString();
+//}
+//
+//$c = new TestClass();
+//$c->outerMethod();
 
-if (!isset($file_exception)) {
+if (! isset($file_exception)) {
     echo "internal error: file-level Exception was not caught";
+    exit(1);
+}
+
+function exception_from_eval_method()
+{
+    $c = new \EvalClass();
+
+    try {
+        $c->instanceMethod();
+    } catch (Exception $exception) {
+        return $exception;
+    }
+
+    echo "internal error: Exception not caught";
+    exit(1);
+}
+
+function exception_from_instance_method()
+{
+    $c = new TestClass();
+
+    try {
+        $c->instanceMethod();
+    } catch (Exception $exception) {
+        return $exception;
+    }
+
+    echo "internal error: Exception not caught";
+    exit(1);
+}
+
+function exception_from_outer_method()
+{
+    $c = new TestClass();
+
+    try {
+        $c->outerMethod();
+    } catch (Exception $exception) {
+        return $exception;
+    }
+
+    echo "internal error: Exception not caught";
+    exit(1);
+}
+
+function exception_from_error_handler()
+{
+    $c = new TestClass();
+
+    set_error_handler(function ($errno, $errstr, $errfile, $errline) {
+        $error = new ErrorException($errstr, 0, $errno, $errfile, $errline);
+
+        if ($error->getSeverity() & error_reporting()) {
+            throw $error;
+        }
+    });
+
+    try {
+        $c->divideByZero();
+    } catch (Exception $exception) {
+        return $exception;
+    } finally {
+        restore_error_handler();
+    }
+
+    echo "internal error: Exception not caught";
+    exit(1);
+}
+
+function exception_from_static_method()
+{
+    try {
+        TestClass::staticMethod();
+    } catch (Exception $exception) {
+        return $exception;
+    }
+
+    echo "internal error: Exception not caught";
+    exit(1);
+}
+
+function exception_from_anon_func()
+{
+    $c = new TestClass();
+
+    try {
+        $c->anonFunction();
+    } catch (Exception $exception) {
+        return $exception;
+    }
+
+    echo "internal error: Exception not caught";
     exit(1);
 }
 
 function contains_parts($string, array $parts)
 {
-    $pattern = implode(".*", array_map("preg_quote", $parts));
+    $pattern = '/' . implode(".*", array_map("preg_quote", $parts)) . '/s';
 
     ok(
-        preg_match("/{$pattern}/", $string) === 1,
-        "should contain text: " . implode("...", $parts),
-        $string
+        preg_match($pattern, $string) === 1,
+        "should contain parts: " . implode("...", $parts) . "\nactual contents:\n{$string}"
     );
 }
 
@@ -84,22 +176,42 @@ test(
 test(
     "can format Exceptions",
     function () {
-        // TODO
+        $formatter = new MessageFormatter();
+
+        contains_parts(
+            $formatter->formatMessage(exception_from_instance_method()),
+            [
+                'Exception with message: from instance method in',
+                'cases.php(21)',
+            ]
+        );
     }
 );
 
 test(
     "can format (backtrack through) multi-level Exceptions",
     function () {
-        // TODO
+        $formatter = new TraceFormatter();
+
+        $factory = new TraceFactory();
+
+        $trace = $factory->createFromException(exception_from_outer_method(), 2);
+
+        contains_parts(
+            $formatter->formatTrace($trace),
+            [
+                'Exception with message: from outer method',
+                'cases.php(29)',
+                'Exception with message: from inner method',
+                'cases.php(35)',
+            ]
+        );
     }
 );
 
 test(
     "can format argument lists",
     function () {
-        $formatter = new ExceptionFormatter();
-
         $c = new TestClass();
 
         try {
@@ -108,13 +220,19 @@ test(
             // caught
         }
 
-        if (!isset($exception)) {
+        if (! isset($exception)) {
             echo "internal error: Exception was not caught";
             exit(1);
         }
 
+        $factory = new TraceFactory();
+
+        $trace = $factory->createFromException($exception, 3);
+
+        $formatter = new TraceFormatter();
+
         contains_parts(
-            $formatter->formatException($exception, 3),
+            $formatter->formatTrace($trace),
             ['#1', __FILE__, TestClass::class, '->outerMethod([1, 2, 3])']
         );
     }
@@ -127,13 +245,13 @@ test(
 
         $trace = $factory->createFromData([
             [
-                'file' => 'foo.php',
-                'line' => 99,
+                'file'     => 'foo.php',
+                'line'     => 99,
                 'function' => 'yada()',
-                'args' => [1, 2, 3],
-                'class' => 'Foo',
-                'type' => TraceElement::TYPE_INSTANCE,
-                'object' => new TestClass(),
+                'args'     => [1, 2, 3],
+                'class'    => 'Foo',
+                'type'     => TraceElement::TYPE_INSTANCE,
+                'object'   => new TestClass(),
             ],
         ]);
 
@@ -164,7 +282,7 @@ test(
             // caught
         }
 
-        if (!isset($exception)) {
+        if (! isset($exception)) {
             echo "internal error: Exception was not caught";
             exit(1);
         }
@@ -193,7 +311,22 @@ test(
 test(
     "can format debug_backtrace()",
     function () {
-        // TODO
+        $c = new TestClass();
+
+        $backtrace = $c->outerTrace();
+
+        $formatter = new TraceFormatter();
+
+        $factory = new TraceFactory();
+
+        $string = $formatter->formatTrace($factory->createFromData($backtrace));
+
+        contains_parts(
+            $string,
+            [
+                '#0', 'cases.php(62)', 'mindplay\tracer\test\TestClass->innerTrace()',
+            ]
+        );
     }
 );
 
@@ -235,7 +368,7 @@ test(
 test(
     "can format severity levels",
     function () {
-        $formatter = new ExceptionFormatter();
+        $formatter = new MessageFormatter();
 
         contains_parts($formatter->formatException(new Exception()), ['Exception with message: {none}']);
 
@@ -248,9 +381,9 @@ test(
 /**
  * @param Exception $exception
  *
- * @return TraceElement[]
+ * @return Trace
  */
-function case_elements(Exception $exception)
+function case_trace(Exception $exception)
 {
     $factory = new TraceFactory();
 
@@ -258,8 +391,17 @@ function case_elements(Exception $exception)
         ->createFromException($exception)
         ->filter(function (TraceElement $element) {
             return $element->getFile() === __DIR__ . DIRECTORY_SEPARATOR . 'cases.php';
-        })
-        ->getElements();
+        });
+}
+
+/**
+ * @param Exception $exception
+ *
+ * @return TraceElement[]
+ */
+function case_elements(Exception $exception)
+{
+    return case_trace($exception)->getElements();
 }
 
 /**
@@ -281,7 +423,7 @@ test(
     function () use ($file_exception) {
         $elements = case_elements($file_exception);
 
-        eq($elements[0]->getLine(), 48);
+        eq($elements[0]->getLine(), 71);
 
         // TODO more assertions?
     }
@@ -290,15 +432,7 @@ test(
 test(
     "can trace from eval()'ed code",
     function () {
-        $c = new \EvalClass();
-
-        try {
-            $c->instanceMethod();
-        } catch (Exception $exception) {
-            // caught
-        }
-
-        $elements = all_elements($exception);
+        $elements = all_elements(exception_from_eval_method());
 
         // TODO $elements[0]->getFile() is something like:
         // "C:\workspace\test\mindplay-tracer\test\cases.php(19) : eval()'d code"

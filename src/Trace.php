@@ -3,7 +3,7 @@
 namespace mindplay\tracer;
 
 /**
- * This class represents an ordered list of stack-trace elements.
+ * This class represents an ordered list of stack-trace elements and (optionally) and associated message.
  */
 class Trace
 {
@@ -13,11 +13,25 @@ class Trace
     private $elements;
 
     /**
-     * @param TraceElement[] $elements
+     * @var string|null
      */
-    public function __construct($elements)
+    private $message;
+
+    /**
+     * @var Trace|null
+     */
+    private $previous;
+
+    /**
+     * @param TraceElement[] $elements
+     * @param string|null    $message
+     * @param Trace|null     $previous
+     */
+    public function __construct($elements, $message = null, Trace $previous = null)
     {
         $this->elements = $elements;
+        $this->message = $message;
+        $this->previous = $previous;
     }
 
     /**
@@ -26,6 +40,22 @@ class Trace
     public function getElements()
     {
         return $this->elements;
+    }
+
+    /**
+     * @return string|null
+     */
+    public function getMessage()
+    {
+        return $this->message;
+    }
+
+    /**
+     * @return Trace|null
+     */
+    public function getPrevious()
+    {
+        return $this->previous;
     }
 
     /**
@@ -45,6 +75,10 @@ class Trace
             }
         }
 
-        return new Trace($elements);
+        $previous = $this->previous
+            ? $this->previous->filter($accept)
+            : null;
+
+        return new Trace($elements, $this->message, $previous);
     }
 }

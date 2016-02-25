@@ -27,15 +27,19 @@ class TraceFormatter
      */
     public function formatTrace(Trace $trace)
     {
-        $elements = $trace->getElements();
+        $message = $trace->getMessage();
 
-        $formatted = [];
+        $formatted = $message ? "{$message}\n\n" : "";
 
-        foreach ($elements as $index => $element) {
-            $formatted[] = sprintf("%6s", "#{$index}") . " " . $this->formatTraceElement($element);
+        $formatted .= $this->formatElements($trace->getElements());
+
+        $previous_trace = $trace->getPrevious();
+
+        if ($previous_trace) {
+            $formatted .= "\n\n" . $this->formatTrace($previous_trace);
         }
 
-        return implode("\n", $formatted);
+        return $formatted;
     }
 
     /**
@@ -98,5 +102,21 @@ class TraceFormatter
         return $function
             ? "{$function}({$args})"
             : "";
+    }
+
+    /**
+     * @param TraceElement[] $elements
+     *
+     * @return string
+     */
+    protected function formatElements($elements)
+    {
+        $formatted = [];
+
+        foreach ($elements as $index => $element) {
+            $formatted[] = sprintf("%6s", "#{$index}") . " " . $this->formatTraceElement($element);
+        }
+
+        return implode("\n", $formatted);
     }
 }

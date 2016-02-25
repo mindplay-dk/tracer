@@ -10,19 +10,43 @@ use Exception;
 class TraceFactory
 {
     /**
-     * @param Exception $exception
-     *
-     * @return Trace
+     * @var MessageFormatter
      */
-    public function createFromException(Exception $exception)
-    {
-        $elements = $this->createElementsFromException($exception);
+    protected $message_formatter;
 
-        return $this->createTrace($elements);
+    /**
+     * @param MessageFormatter|null $message_formatter
+     */
+    public function __construct(MessageFormatter $message_formatter = null)
+    {
+        $this->message_formatter = $message_formatter ?: $this->createDefaultMessageFormatter();
     }
 
     /**
-     * @param array $data an stack-trace record
+     * @param Exception $exception
+     * @param int       $backtracking number of levels to backtrack through previous stack-traces
+     *
+     * @return Trace
+     */
+    public function createFromException(Exception $exception, $backtracking = 0)
+    {
+        $previous_exception = $backtracking > 0
+            ? $exception->getPrevious()
+            : null;
+
+        $previous_trace = $previous_exception
+            ? $this->createFromException($previous_exception, $backtracking - 1)
+            : null;
+
+        $elements = $this->createElementsFromData($exception->getTrace());
+
+        $message = $this->message_formatter->formatMessage($exception);
+
+        return $this->createTrace($elements, $message, $previous_trace);
+    }
+
+    /**
+     * @param array $data a stack-trace record
      *
      * @return Trace
      */
@@ -34,13 +58,23 @@ class TraceFactory
     }
 
     /**
+     * @return MessageFormatter
+     */
+    protected function createDefaultMessageFormatter()
+    {
+        return new MessageFormatter();
+    }
+
+    /**
      * @param TraceElement[] $elements
+     * @param string|null    $message
+     * @param Trace|null     $previous
      *
      * @return Trace
      */
-    protected function createTrace($elements)
+    protected function createTrace($elements, $message = null, Trace $previous = null)
     {
-        return new Trace($elements);
+        return new Trace($elements, $message, $previous);
     }
 
     /**
@@ -49,51 +83,6 @@ class TraceFactory
     protected function createElement($record)
     {
         return new TraceElement($record);
-    }
-
-    /**
-     * Create stack-trace Elements for a given Exception.
-     *
-     * This includes a reconstruction of the origin call record, which is otherwise
-     * missing from the stack-trace produced by `Exception::getTrace()`.
-     *
-     * @param Exception $exception
-     *
-     * @return TraceElement[]
-     */
-    protected function createElementsFromException(Exception $exception)
-    {
-        $data = $exception->getTrace();
-
-        array_unshift($data, $this->createDataFromException($exception));
-
-        return $this->createElementsFromData($data);
-    }
-
-    /**
-     * Reconstruct the missing origin call record for a given Exception.
-     *
-     * @param Exception $exception
-     *
-     * @return array
-     */
-    protected function createDataFromException(Exception $exception)
-    {
-        $data = [];
-
-        $file = $exception->getFile();
-
-        if ($file !== null && $file !== "") {
-            $data['file'] = $file;
-        }
-
-        $line = $exception->getLine();
-
-        if ($line !== null && $line !== "") {
-            $data['line'] = $line;
-        }
-
-        return $data;
     }
 
     /**
