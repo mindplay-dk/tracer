@@ -4,22 +4,31 @@ namespace mindplay\tracer;
 
 use stdClass;
 
-/**
- * This class presents php-values in a `var_dump()`-esque, human-readable format.
- */
-class ValueFormatter
+class ValueFormatter implements ValueFormatterInterface
 {
     /**
      * @var int strings longer than this number of characters will be truncated in formatted strings
      */
-    public $string_length = 20;
+    public $string_length = 120;
 
     /**
-     * Format any value as a human-readable string.
-     *
-     * @param mixed $value
-     *
-     * @return string
+     * @inheritdoc
+     */
+    public function formatArray(array $array)
+    {
+        $formatted = array_map([$this, "formatValue"], $array);
+
+        if (array_keys($array) !== range(0, count($array) - 1)) {
+            foreach ($formatted as $name => $value) {
+                $formatted[$name] = "{$name} => {$value}";
+            }
+        }
+
+        return implode(", ", $formatted);
+    }
+
+    /**
+     * @inheritdoc
      */
     public function formatValue($value)
     {
@@ -60,27 +69,5 @@ class ValueFormatter
         }
 
         return "{{$type}}"; // "unknown type" and possibly unsupported (future) types
-    }
-
-    /**
-     * Format an array as a human-readble, comma-separated string.
-     *
-     * Array keys will be included only if the array has non-numeric (or non-sequential) keys.
-     *
-     * @param array $array
-     *
-     * @return string
-     */
-    public function formatArray(array $array)
-    {
-        $formatted = array_map([$this, "formatValue"], $array);
-
-        if (array_keys($array) !== range(0, count($array) - 1)) {
-            foreach ($formatted as $name => $value) {
-                $formatted[$name] = "{$name} => {$value}";
-            }
-        }
-
-        return implode(", ", $formatted);
     }
 }

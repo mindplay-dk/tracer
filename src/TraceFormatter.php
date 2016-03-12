@@ -8,46 +8,36 @@ namespace mindplay\tracer;
 class TraceFormatter
 {
     /**
-     * @var ValueFormatter
+     * @var ValueFormatterInterface
      */
     protected $value_formatter;
 
     /**
-     * @param ValueFormatter $value_formatter
+     * @param ValueFormatterInterface $value_formatter
      */
-    public function __construct(ValueFormatter $value_formatter = null)
+    public function __construct(ValueFormatterInterface $value_formatter = null)
     {
         $this->value_formatter = $value_formatter ?: $this->createDefaultValueFormatter();
     }
 
     /**
+     * Create a formatted stack-trace for a given `Trace` instance.
+     *
      * @param Trace $trace
      *
      * @return string
      */
     public function formatTrace(Trace $trace)
     {
-        $message = $trace->getMessage();
+        $elements = $trace->getElements();
 
-        $formatted = $message ? "{$message}\n\n" : "";
+        $formatted = [];
 
-        $formatted .= $this->formatElements($trace->getElements());
-
-        $previous_trace = $trace->getPrevious();
-
-        if ($previous_trace) {
-            $formatted .= "\n\n" . $this->formatTrace($previous_trace);
+        foreach ($elements as $index => $element) {
+            $formatted[] = sprintf("%6s", "#{$index}") . " " . $this->formatTraceElement($element);
         }
 
-        return $formatted;
-    }
-
-    /**
-     * @return ValueFormatter
-     */
-    protected function createDefaultValueFormatter()
-    {
-        return new ValueFormatter();
+        return implode("\n", $formatted);
     }
 
     /**
@@ -57,10 +47,18 @@ class TraceFormatter
      */
     protected function formatTraceElement(TraceElement $element)
     {
+        $file = $this->getFileReference($element);
         $call = $this->formatCall($element);
-        $file = $this->formatFile($element);
 
         return "{$file} {$call}";
+    }
+
+    /**
+     * @return ValueFormatterInterface
+     */
+    protected function createDefaultValueFormatter()
+    {
+        return new ValueFormatter();
     }
 
     /**
@@ -72,7 +70,7 @@ class TraceFormatter
      *
      * @return string
      */
-    protected function formatFile(TraceElement $element)
+    protected function getFileReference(TraceElement $element)
     {
         return $element->getFile()
             ? $element->getFile() . "(" . $element->getLine() . ")"
@@ -102,21 +100,5 @@ class TraceFormatter
         return $function
             ? "{$function}({$args})"
             : "";
-    }
-
-    /**
-     * @param TraceElement[] $elements
-     *
-     * @return string
-     */
-    protected function formatElements($elements)
-    {
-        $formatted = [];
-
-        foreach ($elements as $index => $element) {
-            $formatted[] = sprintf("%6s", "#{$index}") . " " . $this->formatTraceElement($element);
-        }
-
-        return implode("\n", $formatted);
     }
 }

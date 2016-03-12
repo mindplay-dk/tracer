@@ -20,20 +20,18 @@ try {
     // caught!
 }
 
-//try {
-//    $c = new TestClass();
-//    $c->outerMethod();
-//} catch (Exception $e) {
-//    echo $e->__toString();
-//}
-//
-//$c = new TestClass();
-//$c->outerMethod();
-
 if (! isset($file_exception)) {
     echo "internal error: file-level Exception was not caught";
     exit(1);
 }
+
+//Standard stack trace for reference:
+//
+//Fatal error: Uncaught exception 'Exception' with message 'from file' in C:\workspace\test\mindplay-tracer\test\cases.php:71
+//Stack trace:
+//#0 C:\workspace\test\mindplay-tracer\test\test.php(17): require()
+//#1 {main}
+//  thrown in C:\workspace\test\mindplay-tracer\test\cases.php on line 71
 
 function exception_from_eval_method()
 {
@@ -179,31 +177,10 @@ test(
         $formatter = new MessageFormatter();
 
         contains_parts(
-            $formatter->formatMessage(exception_from_instance_method()),
+            $formatter->getExceptionSummary(exception_from_instance_method()),
             [
                 'Exception with message: from instance method in',
                 'cases.php(21)',
-            ]
-        );
-    }
-);
-
-test(
-    "can format (backtrack through) multi-level Exceptions",
-    function () {
-        $formatter = new TraceFormatter();
-
-        $factory = new TraceFactory();
-
-        $trace = $factory->createFromException(exception_from_outer_method(), 2);
-
-        contains_parts(
-            $formatter->formatTrace($trace),
-            [
-                'Exception with message: from outer method',
-                'cases.php(29)',
-                'Exception with message: from inner method',
-                'cases.php(35)',
             ]
         );
     }
@@ -227,13 +204,13 @@ test(
 
         $factory = new TraceFactory();
 
-        $trace = $factory->createFromException($exception, 3);
+        $trace = $factory->createFromException($exception);
 
         $formatter = new TraceFormatter();
 
         contains_parts(
             $formatter->formatTrace($trace),
-            ['#1', __FILE__, TestClass::class, '->outerMethod([1, 2, 3])']
+            ['#0', __FILE__, TestClass::class, '->outerMethod([1, 2, 3])']
         );
     }
 );
@@ -370,9 +347,18 @@ test(
     function () {
         $formatter = new MessageFormatter();
 
-        contains_parts($formatter->formatException(new Exception()), ['Exception with message: {none}']);
+        eq(
+            $formatter->getExceptionSummary(exception_from_instance_method()),
+            'Exception with message: from instance method in C:\workspace\test\mindplay-tracer\test\cases.php(21)'
+        );
 
-        contains_parts($formatter->formatException(new ErrorException("", 0, E_NOTICE)), ['ErrorException: Notice']);
+        eq(
+            $formatter->getExceptionType(new RuntimeException()),
+            'Exception: RuntimeException'
+        );
+
+        eq($formatter->getSeverity(E_ERROR), 'Fatal error');
+        eq($formatter->getSeverity(E_NOTICE), 'Notice');
 
         // TODO test all error-levels
     }
@@ -421,9 +407,11 @@ function all_elements(Exception $exception)
 test(
     "can trace from file",
     function () use ($file_exception) {
-        $elements = case_elements($file_exception);
+        $elements = all_elements($file_exception);
 
-        eq($elements[0]->getLine(), 71);
+        eq(count($elements), 1);
+        eq($elements[0]->getLine(), 18);
+        eq($elements[0]->getFile(), __FILE__);
 
         // TODO more assertions?
     }
