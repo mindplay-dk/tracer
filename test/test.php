@@ -155,6 +155,14 @@ test(
             new \stdClass(),
             new TestClass(),
             $file,
+
+            // callable types:
+            'intval',
+            [new TestClass(), 'instanceMethod'],
+            [TestClass::class, 'staticMethod'],
+            function () {},
+            new InvokableTestClass(),
+
             $unknown,
         ];
 
@@ -166,7 +174,25 @@ test(
 
         eq(
             $formatted,
-            '[true, false, null, 123, float(0.42), "hello", [1, 2, 3], [foo => "bar", bat => "baz"], {object}, {mindplay\tracer\test\TestClass}, {stream}, {unknown type}]'
+            '['
+            . 'true, '
+            . 'false, '
+            . 'null, '
+            . '123, '
+            . 'float(0.42), '
+            . '"hello", '
+            . '[1, 2, 3], '
+            . '[foo => "bar", bat => "baz"], '
+            . '{object}, '
+            . '{mindplay\tracer\test\TestClass}, '
+            . '{stream}, '
+            . 'intval(), '
+            . '{mindplay\tracer\test\TestClass}->instanceMethod(), '
+            . 'mindplay\tracer\test\TestClass::staticMethod(), '
+            . 'closure in C:\workspace\test\mindplay-tracer\test\test.php(163), '
+            . 'mindplay\tracer\test\InvokableTestClass::__invoke(), '
+            . '{unknown type}'
+            . ']'
         );
     }
 );
@@ -180,7 +206,7 @@ test(
             $formatter->getExceptionSummary(exception_from_instance_method()),
             [
                 'Exception with message: from instance method in',
-                'cases.php(21)',
+                'cases.php(27)',
             ]
         );
     }
@@ -301,7 +327,7 @@ test(
         contains_parts(
             $string,
             [
-                '#0', 'cases.php(62)', 'mindplay\tracer\test\TestClass->innerTrace()',
+                '#0', 'cases.php(68)', 'mindplay\tracer\test\TestClass->innerTrace()',
             ]
         );
     }
@@ -349,7 +375,7 @@ test(
 
         eq(
             $formatter->getExceptionSummary(exception_from_instance_method()),
-            'Exception with message: from instance method in C:\workspace\test\mindplay-tracer\test\cases.php(21)'
+            'Exception with message: from instance method in C:\workspace\test\mindplay-tracer\test\cases.php(27)'
         );
 
         eq(

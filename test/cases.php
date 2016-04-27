@@ -14,6 +14,12 @@ class EvalClass {
 CODE
 );
 
+class InvokableTestClass
+{
+    public function __invoke()
+    {}
+}
+
 class TestClass
 {
     public function instanceMethod()

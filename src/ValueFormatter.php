@@ -2,6 +2,8 @@
 
 namespace mindplay\tracer;
 
+use Closure;
+use ReflectionFunction;
 use stdClass;
 
 class ValueFormatter implements ValueFormatterInterface
@@ -32,8 +34,10 @@ class ValueFormatter implements ValueFormatterInterface
      */
     public function formatValue($value)
     {
-        $type = strtolower(gettype($value));
-
+        $type = is_callable($value)
+            ? "callable"
+            : strtolower(gettype($value));
+        
         switch ($type) {
             case "boolean":
                 return $value ? "true" : "false";
@@ -63,7 +67,24 @@ class ValueFormatter implements ValueFormatterInterface
 
             case "resource":
                 return "{" . get_resource_type($value) . "}";
+            
+            case "callable":
+                if (is_string($value)) {
+                    return "{$value}()";
+                } else if (is_array($value)) {
+                    return is_object($value[0])
+                        ? '{' . get_class($value[0]) . "}->{$value[1]}()"
+                        : "{$value[0]}::{$value[1]}()";
+                } else if ($value instanceof Closure) {
+                    $reflection = new ReflectionFunction($value);
 
+                    return "closure in " . $reflection->getFileName() . "({$reflection->getStartLine()})";
+                } else if (method_exists($value, "__invoke")) {
+                    return get_class($value) . "::__invoke()";
+                }
+
+                return "unknown callable";
+            
             case "null":
                 return "null";
         }
